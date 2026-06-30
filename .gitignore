@@ -1,0 +1,23 @@
+# =====================================================================
+# .gitignore — Raíz del monorepo
+# =====================================================================
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Variables de entorno y credenciales en cualquier subdirectorio
+**/.env
+**/credentials.json
+**/token.json
+
+# Logs
+*.log
+logs/

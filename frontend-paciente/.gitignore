@@ -1,0 +1,40 @@
+# =====================================================================
+# .gitignore — Portal del Paciente
+# =====================================================================
+
+# Dependencias
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Build
+dist/
+dist-ssr/
+build/
+*.local
+
+# Logs
+*.log
+logs/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Vite cache
+.vite/
+
+# Cobertura
+coverage/

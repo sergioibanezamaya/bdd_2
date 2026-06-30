@@ -1,0 +1,413 @@
+/* =====================================================================
+ * styles.css — Portal del Paciente
+ * TP Base de Datos II — Sistema de Turnos Odontológicos
+ *
+ * Mobile-first, container max 600px, fuentes 16px en inputs para evitar
+ * zoom en iOS. Lenguaje amable. Sin frameworks.
+ * ===================================================================== */
+
+* { box-sizing: border-box; }
+
+:root {
+  --primary: #0d6efd;
+  --primary-dark: #0a58ca;
+  --success: #198754;
+  --danger: #dc3545;
+  --warning: #ffc107;
+  --secondary: #6c757d;
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --border: #e0e6ed;
+  --text: #1f2d3d;
+  --muted: #6c757d;
+}
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+               Ubuntu, Cantarell, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================ Header ============================ */
+.portal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.portal-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.portal-header .brand .logo { font-size: 1.4rem; }
+
+.portal-header .user-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.portal-header .user-block .logout-btn {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-height: 44px; /* touch target */
+}
+
+.portal-header .user-block .logout-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* ============================ Container ============================ */
+.portal-container {
+  flex: 1;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+.portal-title {
+  margin: 8px 0 16px;
+  font-size: 1.4rem;
+}
+
+.portal-subtitle {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* ============================ Card ============================ */
+.portal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.portal-card h2 { margin-top: 0; font-size: 1.15rem; }
+
+/* ============================ Botones ============================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  background: var(--secondary);
+  color: #fff;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-full { width: 100%; }
+
+.btn-primary { background: var(--primary); }
+.btn-success { background: var(--success); }
+.btn-danger  { background: var(--danger); }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn-sm { padding: 8px 14px; font-size: 0.85rem; min-height: 36px; }
+
+/* ============================ Formularios ============================ */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 16px; /* evita zoom en iOS */
+  font-family: inherit;
+  background: #fff;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
+
+.form-help {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ============================ Login screen ============================ */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-screen .login-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--border);
+}
+
+.login-screen .login-logo {
+  font-size: 2.4rem;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.login-screen .login-title {
+  text-align: center;
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+}
+
+.login-screen .login-subtitle {
+  text-align: center;
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ============================ Badges ============================ */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.badge-pendiente  { background: #fff3cd; color: #856404; }
+.badge-confirmado { background: #d1e7dd; color: #0f5132; }
+.badge-cancelado  { background: #f8d7da; color: #842029; }
+.badge-atendido   { background: #cfe2ff; color: #084298; }
+
+/* ============================ Disponibilidad ============================ */
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.slot-btn {
+  padding: 12px 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  text-align: center;
+  min-height: 44px;
+  font-size: 0.95rem;
+}
+
+.slot-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.slot-btn.selected {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.slot-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================ Turno card ============================ */
+.turno-card-paciente {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.turno-card-paciente .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.turno-card-paciente .tratamiento {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-bottom: 4px;
+}
+
+.turno-card-paciente .fecha {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.turno-card-paciente .actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ============================ Modal ============================ */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 22px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+
+.modal h2 { margin-top: 0; font-size: 1.2rem; }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* ============================ Helpers ============================ */
+.muted { color: var(--muted); font-size: 0.9rem; }
+.text-center { text-align: center; }
+.flex-gap { display: flex; gap: 8px; align-items: center; }
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 16px; }
+.mt-2 { margin-top: 16px; }
+
+.alert {
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+}
+
+.alert-info    { background: #cfe2ff; color: #084298; }
+.alert-success { background: #d1e7dd; color: #0f5132; }
+.alert-warning { background: #fff3cd; color: #856404; }
+.alert-error   { background: #f8d7da; color: #842029; }
+
+.loading {
+  padding: 30px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.empty .big {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  font-style: normal;
+  margin-bottom: 6px;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 18px 0;
+}
+
+/* ============================ CTA destacado ============================ */
+.cta-primary {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  font-size: 1.05rem;
+  background: var(--primary);
+  color: #fff;
+  text-align: center;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  margin-top: 8px;
+  min-height: 52px;
+}
+
+.cta-primary:hover { filter: brightness(1.08); color: #fff; }
