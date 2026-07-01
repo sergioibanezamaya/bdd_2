@@ -4,13 +4,13 @@
  * Maneja el flujo:
  *   - Ingreso DNI → busca en BD.
  *   - Si existe: redirige a /home.
- *   - Si NO existe: muestra RegistroForm con DNI precargado.
+ *   - Si NO existe: muestra PacienteForm con DNI precargado.
  */
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoginForm from '../components/LoginForm.jsx';
-import RegistroForm from '../components/RegistroForm.jsx';
+import PacienteForm from '../components/PacienteForm.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function LoginPage() {
@@ -28,7 +28,7 @@ export default function LoginPage() {
       if (res.exists) {
         navigate('/home', { replace: true });
       } else {
-        setDniIngresado(dni); // abre RegistroForm
+        setDniIngresado(dni); // abre PacienteForm en modo registro
       }
     } catch (err) {
       setError(err);
@@ -49,11 +49,21 @@ export default function LoginPage() {
 
   if (dniIngresado) {
     return (
-      <RegistroForm
-        dniInicial={dniIngresado}
-        onRegistrar={handleRegistrar}
-        onCancel={handleCancelRegistro}
-      />
+      <div className="login-screen">
+        <div className="login-card">
+          <div className="login-logo">📝</div>
+          <h1 className="login-title">Crear cuenta</h1>
+          <p className="login-subtitle">
+            Tu DNI no está registrado. Completá tus datos para empezar.
+          </p>
+          <PacienteForm
+            dniInicial={dniIngresado}
+            onRegistrar={handleRegistrar}
+            onCancel={handleCancelRegistro}
+            loading={loading}
+          />
+        </div>
+      </div>
     );
   }
 

@@ -23,6 +23,7 @@ export default function TurnoForm({ turnoInicial, onClose, onSaved }) {
   const [fecha, setFecha] = useState(turnoInicial?.fecha || todayYMD());
   const [horaInicio, setHoraInicio] = useState(turnoInicial?.horaInicio || '');
   const [observaciones, setObservaciones] = useState(turnoInicial?.observaciones || '');
+  const [metodoPago, setMetodoPago] = useState(turnoInicial?.metodoPago || '');
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -56,6 +57,7 @@ export default function TurnoForm({ turnoInicial, onClose, onSaved }) {
         fecha,
         horaInicio,
         observaciones,
+        metodoPago: metodoPago || undefined,
       });
       onSaved(result);
     } catch (e2) {
@@ -125,6 +127,21 @@ export default function TurnoForm({ turnoInicial, onClose, onSaved }) {
                 maxLength={500}
                 rows={2}
               />
+            </div>
+            <div className="form-group full">
+              <label>Método de pago</label>
+              <select
+                value={metodoPago}
+                onChange={(e) => setMetodoPago(e.target.value)}
+                disabled={saving}
+              >
+                <option value="">— Sin especificar —</option>
+                <option value="Efectivo">💵 Efectivo (en el consultorio)</option>
+                <option value="Transferencia">🏦 Transferencia bancaria (sin comprobante desde el consultorio)</option>
+              </select>
+              <small className="muted">
+                Si el paciente reservó por el portal, este método se puede sobrescribir.
+              </small>
             </div>
           </div>
 

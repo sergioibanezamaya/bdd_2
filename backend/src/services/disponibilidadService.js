@@ -14,6 +14,9 @@
  *   - Duración efectiva: la del Tratamiento, o 30 min por defecto.
  *   - Un slot está libre si ningún turno reservado se solapa con
  *     [slotInicio, slotInicio + duracionMin).
+ *   - Se devuelven TODOS los slots del día con un flag `ocupado: boolean`
+ *     y `libreHasta: HH:MM` (cuándo termina la disponibilidad del doctor
+ *     si se eligiera ese slot).
  * =====================================================================
  */
 
@@ -29,18 +32,18 @@ import {
   minutesToHhmm,
   getLocalDayOfWeek,
   buildLocalDateTime,
-  formatYMD,
 } from '../utils/time.js';
 
 /**
- * Devuelve los slots libres para una fecha y duración determinadas.
+ * Devuelve la lista completa de slots del día, con flag `ocupado` y
+ * `libreHasta` (cuándo termina la disponibilidad si se eligiera).
+ *
  * @param {string} ymd - Fecha en formato YYYY-MM-DD
  * @param {number} duracionMin - Duración total del turno en minutos
- * @returns {Promise<string[]>} Array de strings "HH:MM"
+ * @returns {Promise<Array<{ hora: string, ocupado: boolean, motivo?: string, libreHasta?: string }>>}
  */
-export async function obtenerSlotsLibres(ymd, duracionMin) {
+export async function obtenerSlotsCompletos(ymd, duracionMin) {
   // 1) Validar día laborable
-  // Construimos un Date local para getDay()
   const fecha = buildLocalDateTime(ymd, '00:00');
   const dow = getLocalDayOfWeek(fecha);
   if (!DIAS_LABORABLES.includes(dow)) {
@@ -49,16 +52,10 @@ export async function obtenerSlotsLibres(ymd, duracionMin) {
 
   // 2) Slots base
   const slotsBase = generarSlotsBase();
-
-  // 3) Si es hoy, descartar slots pasados
   const ahora = new Date();
-  const slotsFiltradosPorHora = slotsBase.filter((slot) => {
-    const slotDate = buildLocalDateTime(ymd, slot);
-    // Margen de 30 minutos para crear el turno con anticipación
-    return slotDate.getTime() > ahora.getTime() + 30 * 60 * 1000;
-  });
+  const margenMs = 30 * 60 * 1000;
 
-  // 4) Traer turnos reservados ese día
+  // 3) Traer turnos reservados ese día
   const inicioDia = new Date(fecha);
   inicioDia.setHours(0, 0, 0, 0);
   const finDia = new Date(fecha);
@@ -72,33 +69,75 @@ export async function obtenerSlotsLibres(ymd, duracionMin) {
     { 'horario.horaInicio': 1, 'horario.horaFin': 1 }
   );
 
-  // 5) Filtrar slots que no se solapan con ningún reservado
-  const libres = slotsFiltradosPorHora.filter((slot) => {
-    const nuevoInicio = hhmmToMinutes(slot);
-    const nuevoFin = nuevoInicio + duracionMin;
+  // 4) Construir la lista completa con flags
+  const cierreMin = hhmmToMinutes('20:00');
+  const resultado = slotsBase.map((slot) => {
+    const slotInicio = hhmmToMinutes(slot);
+    const slotFin = slotInicio + duracionMin;
+    const slotDate = buildLocalDateTime(ymd, slot);
 
-    // Verificar que el slot + duración no supere el cierre
-    const cierreMin = hhmmToMinutes('20:00');
-    if (nuevoFin > cierreMin) return false;
+    // Pasado: ya pasó la hora + margen
+    if (slotDate.getTime() <= ahora.getTime() + margenMs) {
+      return { hora: slot, ocupado: true, motivo: 'pasado' };
+    }
 
-    // Verificar no-solapamiento con cada turno reservado
+    // Fuera del horario de cierre
+    if (slotFin > cierreMin) {
+      return { hora: slot, ocupado: true, motivo: 'fuera-de-horario' };
+    }
+
+    // Verificar solapamiento con turnos reservados
+    let ocupadoPor = null;
     for (const t of reservados) {
       const tInicio = hhmmToMinutes(t.horario.horaInicio);
       const tFin = hhmmToMinutes(t.horario.horaFin);
-      // Solapan si: nuevoInicio < tFin && nuevoFin > tInicio
-      if (nuevoInicio < tFin && nuevoFin > tInicio) {
-        return false;
+      if (slotInicio < tFin && slotFin > tInicio) {
+        ocupadoPor = t;
+        break;
       }
     }
-    return true;
+
+    if (ocupadoPor) {
+      return { hora: slot, ocupado: true, motivo: 'turno-activo' };
+    }
+
+    // Libre: hasta qué hora está libre el doctor
+    return {
+      hora: slot,
+      ocupado: false,
+      libreHasta: minutesToHhmm(slotFin),
+    };
   });
 
-  return libres;
+  return resultado;
+}
+
+/**
+ * Devuelve sólo los slots libres (compatibilidad con consumidores previos).
+ * @param {string} ymd
+ * @param {number} duracionMin
+ * @returns {Promise<string[]>}
+ */
+export async function obtenerSlotsLibres(ymd, duracionMin) {
+  const completos = await obtenerSlotsCompletos(ymd, duracionMin);
+  return completos.filter((s) => !s.ocupado).map((s) => s.hora);
 }
 
 /**
  * GET /api/disponibilidad?fecha=YYYY-MM-DD&tratamientoId=...
  * Resuelve la duración efectiva (la del tratamiento si existe).
+ *
+ * Respuesta:
+ *   {
+ *     ok: true,
+ *     data: {
+ *       fecha,
+ *       duracionMin,
+ *       tratamiento,
+ *       slotsLibres: [...],   // sólo los libres (compatibilidad)
+ *       slots: [...],          // todos con flag ocupado
+ *     }
+ *   }
  */
 export async function getDisponibilidad(req, res, next) {
   try {
@@ -122,14 +161,17 @@ export async function getDisponibilidad(req, res, next) {
       }
     }
 
-    const slots = await obtenerSlotsLibres(fecha, duracionMin);
+    const slotsCompletos = await obtenerSlotsCompletos(fecha, duracionMin);
+    const slotsLibres = slotsCompletos.filter((s) => !s.ocupado).map((s) => s.hora);
+
     res.json({
       ok: true,
       data: {
         fecha,
         duracionMin,
         tratamiento: tratamientoNombre,
-        slotsLibres: slots,
+        slotsLibres,
+        slots: slotsCompletos,
       },
     });
   } catch (err) {

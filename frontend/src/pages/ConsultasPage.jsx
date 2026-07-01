@@ -1,6 +1,9 @@
 /**
  * pages/ConsultasPage.jsx — Pantalla 4: Historial clínico
  * TP Base de Datos II — Sistema de Turnos Odontológicos
+ *
+ * Permite seleccionar un paciente y ver todas sus consultas registradas
+ * (cada consulta referencia al turno en el que se atendió).
  */
 import { useState, useEffect } from 'react';
 import { pacientesApi } from '../api/client.js';
@@ -58,7 +61,15 @@ export default function ConsultasPage() {
 
       {pacienteId && loading && <p className="loading">Cargando historial...</p>}
       {pacienteId && error && <div className="alert alert-error">{error}</div>}
-      {pacienteId && !loading && <ConsultaList consultas={data} />}
+      {pacienteId && !loading && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Historial clínico</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Listado cronológico de todas las consultas registradas para este paciente.
+          </p>
+          <ConsultaList consultas={data} />
+        </div>
+      )}
 
       {!pacienteId && <p className="empty">Seleccioná un paciente para ver su historial clínico.</p>}
 

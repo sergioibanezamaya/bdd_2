@@ -1,35 +1,43 @@
 /**
- * hooks/useDisponibilidad.js — Custom hook para slots libres
+ * hooks/useDisponibilidad.js — Custom hook para slots
+ *
+ * Usa el nuevo endpoint que devuelve slots con flag `ocupado` y `libreHasta`.
  * TP Base de Datos II
  */
 import { useState, useEffect } from 'react';
 import { disponibilidadApi } from '../api/client.js';
 
 export function useDisponibilidad(fecha, tratamientoId) {
-  const [slots, setSlots] = useState([]);
+  const [slotsCompletos, setSlotsCompletos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [meta, setMeta] = useState({ duracionMin: 30, tratamiento: null });
 
   useEffect(() => {
     if (!fecha) {
-      setSlots([]);
+      setSlotsCompletos([]);
       setError(null);
       return;
     }
     let cancel = false;
-    // Limpieza previa para evitar mostrar slots de la fecha anterior
-    // mientras llega la respuesta nueva (fix bug "slots viejos al cambiar mes")
-    setSlots([]);
+    setSlotsCompletos([]);
     setLoading(true);
     setError(null);
     disponibilidadApi.consultar(fecha, tratamientoId)
       .then((res) => {
         if (cancel) return;
-        setSlots(res.data.slotsLibres);
+        // Compatibilidad: si el backend no tiene `slots` aún, derivar de slotsLibres
+        const data = res.data;
+        if (Array.isArray(data.slots) && data.slots.length > 0) {
+          setSlotsCompletos(data.slots);
+        } else {
+          setSlotsCompletos(
+            (data.slotsLibres || []).map((h) => ({ hora: h, ocupado: false }))
+          );
+        }
         setMeta({
-          duracionMin: res.data.duracionMin,
-          tratamiento: res.data.tratamiento,
+          duracionMin: data.duracionMin,
+          tratamiento: data.tratamiento,
         });
       })
       .catch((e) => { if (!cancel) setError(e.message); })
@@ -37,5 +45,8 @@ export function useDisponibilidad(fecha, tratamientoId) {
     return () => { cancel = true; };
   }, [fecha, tratamientoId]);
 
-  return { slots, loading, error, meta };
+  // Mantener `slots` por compatibilidad con el componente que ya lo usaba
+  const slots = slotsCompletos.filter((s) => !s.ocupado).map((s) => s.hora);
+
+  return { slots, slotsCompletos, loading, error, meta };
 }

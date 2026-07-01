@@ -39,7 +39,7 @@ export default function NuevoTurnoForm({ paciente }) {
   const [comprobanteMime, setComprobanteMime] = useState('');
   const [comprobantePreview, setComprobantePreview] = useState('');
 
-  const { slots, loading: loadingSlots, error: errorSlots } = useDisponibilidad(fecha, tratamientoId);
+  const { slotsCompletos, loading: loadingSlots, error: errorSlots } = useDisponibilidad(fecha, tratamientoId);
 
   // Cargar tratamientos + alias de pago al montar
   useEffect(() => {
@@ -205,9 +205,12 @@ export default function NuevoTurnoForm({ paciente }) {
             required
           >
             <option value="">— Seleccionar —</option>
-            <option value="Efectivo">💵 Efectivo (en el consultorio)</option>
-            <option value="Transferencia">🏦 Transferencia bancaria</option>
+            <option value="Efectivo">💵 Efectivo (pagás en el consultorio)</option>
+            <option value="Transferencia">🏦 Transferencia bancaria (subís el comprobante)</option>
           </select>
+          <span className="form-help">
+            Elegí cómo vas a pagar el tratamiento. Si es transferencia, adjuntá el comprobante.
+          </span>
         </div>
 
         {metodoPago === 'Transferencia' && (
@@ -273,10 +276,10 @@ export default function NuevoTurnoForm({ paciente }) {
       <div className="portal-card">
         <h2>Elegí un horario</h2>
         <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.9rem' }}>
-          Turnos disponibles de 30 minutos. Tocá el horario que prefieras.
+          Tocá un horario en azul para reservarlo. Los horarios en rojo ya están ocupados.
         </p>
         <DisponibilidadGrid
-          slots={slots}
+          slotsCompletos={slotsCompletos}
           loading={loadingSlots}
           error={errorSlots}
           selectedSlot={selectedSlot}

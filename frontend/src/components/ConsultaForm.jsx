@@ -1,9 +1,32 @@
 /**
  * components/ConsultaForm.jsx — Formulario de consulta clínica
  * TP Base de Datos II — Sistema de Turnos Odontológicos
+ *
+ * Estado de la consulta (excluyente): En curso / Alta médica / Requiere operación.
+ * Se modela con dos flags booleanos en el modelo Consulta, pero el form sólo
+ * permite elegir uno a la vez.
  */
 import { useState, useEffect } from 'react';
 import { consultasApi, tratamientosApi, turnosApi } from '../api/client.js';
+
+/**
+ * Convierte los flags booleanos del backend a un string estado.
+ */
+function flagsAEstado(altaMedica, requiereOperacion) {
+  if (altaMedica) return 'alta';
+  if (requiereOperacion) return 'operacion';
+  return 'curso';
+}
+
+/**
+ * Convierte el estado elegido en flags booleanos para el backend.
+ */
+function estadoAFlags(estado) {
+  return {
+    altaMedica: estado === 'alta',
+    requiereOperacion: estado === 'operacion',
+  };
+}
 
 export default function ConsultaForm({ pacienteId, onClose, onSaved }) {
   const [tratamientos, setTratamientos] = useState([]);
@@ -13,8 +36,7 @@ export default function ConsultaForm({ pacienteId, onClose, onSaved }) {
     diagnostico: '',
     observaciones: '',
     tratamientoId: '',
-    requiereOperacion: false,
-    altaMedica: false,
+    estado: 'curso', // 'curso' | 'alta' | 'operacion'
   });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -40,13 +62,14 @@ export default function ConsultaForm({ pacienteId, onClose, onSaved }) {
     setError(null);
     setSaving(true);
     try {
+      const flags = estadoAFlags(form.estado);
       const payload = {
         pacienteId,
         diagnostico: form.diagnostico,
         observaciones: form.observaciones,
         tratamientoId: form.tratamientoId,
-        requiereOperacion: form.requiereOperacion,
-        altaMedica: form.altaMedica,
+        altaMedica: flags.altaMedica,
+        requiereOperacion: flags.requiereOperacion,
       };
       if (form.turnoId) payload.turnoId = form.turnoId;
       const result = await consultasApi.crear(payload);
@@ -98,17 +121,43 @@ export default function ConsultaForm({ pacienteId, onClose, onSaved }) {
                 ))}
               </select>
             </div>
-            <div className="form-group">
-              <div className="checkbox-group">
-                <input type="checkbox" id="reqOp" name="requiereOperacion" checked={form.requiereOperacion} onChange={handleChange} />
-                <label htmlFor="reqOp" style={{ marginBottom: 0 }}>¿Requiere operación?</label>
+            <div className="form-group full">
+              <label>Estado de la consulta *</label>
+              <div className="radio-group">
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="estado"
+                    value="curso"
+                    checked={form.estado === 'curso'}
+                    onChange={handleChange}
+                  />
+                  <span>🟡 En curso</span>
+                </label>
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="estado"
+                    value="alta"
+                    checked={form.estado === 'alta'}
+                    onChange={handleChange}
+                  />
+                  <span>✅ Alta médica</span>
+                </label>
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="estado"
+                    value="operacion"
+                    checked={form.estado === 'operacion'}
+                    onChange={handleChange}
+                  />
+                  <span>🔪 Requiere operación</span>
+                </label>
               </div>
-            </div>
-            <div className="form-group">
-              <div className="checkbox-group">
-                <input type="checkbox" id="alta" name="altaMedica" checked={form.altaMedica} onChange={handleChange} />
-                <label htmlFor="alta" style={{ marginBottom: 0 }}>¿Alta médica?</label>
-              </div>
+              <small className="muted">
+                Elegí una sola opción. Define el estado clínico del paciente.
+              </small>
             </div>
           </div>
 

@@ -162,6 +162,9 @@ export default function TurnoCard({ turno, onChange }) {
             <button className="btn btn-danger btn-sm btn-outline" disabled={loading} onClick={() => setShowCancel(true)}>
               Cancelar
             </button>
+            <button className="btn btn-danger btn-sm btn-outline" disabled={loading} onClick={() => setShowDelete(true)}>
+              Eliminar
+            </button>
           </>
         )}
         {estado === 'Confirmado' && (
@@ -172,11 +175,19 @@ export default function TurnoCard({ turno, onChange }) {
             <button className="btn btn-danger btn-sm btn-outline" disabled={loading} onClick={() => setShowCancel(true)}>
               Cancelar turno
             </button>
+            <button className="btn btn-danger btn-sm btn-outline" disabled={loading} onClick={() => setShowDelete(true)}>
+              Eliminar
+            </button>
           </>
         )}
         {estado === 'Cancelado' && (
           <button className="btn btn-danger btn-sm" disabled={loading} onClick={() => setShowDelete(true)}>
             Eliminar
+          </button>
+        )}
+        {estado === 'Atendido' && (
+          <button className="btn btn-danger btn-sm btn-outline" disabled={loading} onClick={() => setShowDelete(true)}>
+            Eliminar del historial
           </button>
         )}
       </div>
@@ -203,8 +214,18 @@ export default function TurnoCard({ turno, onChange }) {
       )}
       {showDelete && (
         <ConfirmDialog
-          title="Eliminar turno cancelado"
-          message="Este turno ya está cancelado y se borrará definitivamente. Esta acción no se puede deshacer. ¿Continuar?"
+          title={
+            estado === 'Atendido'
+              ? 'Eliminar turno del historial'
+              : estado === 'Cancelado'
+                ? 'Eliminar turno cancelado'
+                : 'Eliminar turno'
+          }
+          message={
+            estado === 'Atendido'
+              ? 'Este turno está marcado como atendido y se borrará definitivamente. Esta acción no se puede deshacer. ¿Continuar?'
+              : 'Este turno se borrará definitivamente. Si estaba confirmado, también se quitará el evento de Calendar. Esta acción no se puede deshacer. ¿Continuar?'
+          }
           onConfirm={handleEliminar}
           onCancel={() => setShowDelete(false)}
           confirmText="Sí, eliminar"

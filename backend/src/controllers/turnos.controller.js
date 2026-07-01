@@ -24,6 +24,17 @@ import Tratamiento from '../models/Tratamiento.js';
 import { AppError } from '../middlewares/errorHandler.js';
 import { hhmmToMinutes, addMinutes, startOfDay, endOfDay } from '../utils/time.js';
 
+/**
+ * Normaliza el método de pago recibido del frontend.
+ * - null / undefined / '' → null
+ * - 'Efectivo' / 'Transferencia' → mismo string
+ * - Otros → null (no se rechaza, simplemente se ignora)
+ */
+function normalizarMetodoPago(valor) {
+  if (valor === 'Efectivo' || valor === 'Transferencia') return valor;
+  return null;
+}
+
 // Servicios externos (modo degradado si fallan o no están configurados)
 import * as calendarService from '../services/calendarService.js';
 import * as emailService from '../services/emailService.js';
@@ -62,7 +73,7 @@ export async function marcarVencidos() {
 
 /**
  * GET /api/turnos
- * Filtros: ?estado=&paciente=&desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+ * Filtros: ?estado=Pendiente&estado=Confirmado&paciente=&desde=&hasta=
  *
  * Antes de listar, corre el sweep de vencidos (no bloquea si falla).
  */
@@ -72,7 +83,14 @@ export async function listarTurnos(req, res, next) {
     await marcarVencidos();
 
     const filter = {};
-    if (req.query.estado) filter.estado = req.query.estado;
+    // `estado` puede venir repetido (?estado=Pendiente&estado=Confirmado)
+    // o como un único string. Aceptamos ambos formatos.
+    if (req.query.estado) {
+      const estados = Array.isArray(req.query.estado)
+        ? req.query.estado
+        : [req.query.estado];
+      filter.estado = estados.length > 1 ? { $in: estados } : estados[0];
+    }
     if (req.query.paciente) filter.paciente = req.query.paciente;
     if (req.query.desde || req.query.hasta) {
       filter.fecha = {};
@@ -116,6 +134,7 @@ export async function obtenerTurno(req, res, next) {
 export async function crearTurno(req, res, next) {
   try {
     const { pacienteId, tratamientoId, fecha, horaInicio, observaciones } = req.body;
+    const metodoPago = normalizarMetodoPago(req.body.metodoPago);
 
     // 1) Validar referencias
     const [paciente, tratamiento] = await Promise.all([
@@ -158,6 +177,7 @@ export async function crearTurno(req, res, next) {
       estado: 'Pendiente',
       pagoConfirmado: false,
       observaciones: observaciones || '',
+      metodoPago,
     });
 
     const populated = await Turno.findById(turno._id)
@@ -316,20 +336,15 @@ export async function atenderTurno(req, res, next) {
 
 /**
  * DELETE /api/turnos/:id
- * Permitido si el turno está en estado Pendiente o Cancelado.
+ * Permitido en cualquier estado (Pendiente / Confirmado / Cancelado / Atendido).
  * - Si tiene calendarEventId, intenta eliminarlo de Calendar (best-effort).
+ * - Si el turno estaba Confirmado o Atendido, se borra de la lista
+ *   (no se devuelve el slot, queda libre para nuevos turnos).
  */
 export async function eliminarTurno(req, res, next) {
   try {
     const turno = await Turno.findById(req.params.id);
     if (!turno) throw new AppError('Turno no encontrado', 404, 'NOT_FOUND');
-    if (!['Pendiente', 'Cancelado'].includes(turno.estado)) {
-      throw new AppError(
-        `Solo se pueden eliminar turnos en estado Pendiente o Cancelado (actual: ${turno.estado})`,
-        409,
-        'INVALID_STATE_FOR_DELETE'
-      );
-    }
 
     // Best-effort: limpiar evento de Calendar si existe
     if (turno.calendarEventId) {
@@ -341,7 +356,7 @@ export async function eliminarTurno(req, res, next) {
     }
 
     await Turno.findByIdAndDelete(req.params.id);
-    res.json({ ok: true, data: { deleted: true } });
+    res.json({ ok: true, data: { deleted: true, estadoAnterior: turno.estado } });
   } catch (err) {
     next(err);
   }

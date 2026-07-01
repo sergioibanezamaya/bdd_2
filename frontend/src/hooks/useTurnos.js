@@ -1,6 +1,10 @@
 /**
  * hooks/useTurnos.js — Custom hook para turnos
  * TP Base de Datos II
+ *
+ * Acepta filtros con `estado` como string o array de strings.
+ * Para "Activos" pasar `estado: ['Pendiente', 'Confirmado']`.
+ * Para "Historial" pasar `estado: 'Atendido'`.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { turnosApi } from '../api/client.js';
