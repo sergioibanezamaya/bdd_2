@@ -1,15 +1,15 @@
 # Portal del Paciente — Documentación
 
 **Trabajo Práctico — Base de Datos II**
-Extiende el sistema principal con una segunda vista (SPA independiente) donde los pacientes pueden iniciar sesión con su DNI, auto-registrarse, ver y reservar turnos, y cancelarlos.
+Vista del paciente embebida en la misma SPA del consultorio (no es un proyecto aparte).
 
 ---
 
 ## 1. Propósito
 
-El sistema original (`frontend/`) es la vista del **odontólogo/recepción**: gestiona pacientes, turnos, consultas, agenda y reportes. Este documento describe la **vista del paciente** (`frontend-paciente/`): una segunda SPA, completamente separada del frontend principal, que se conecta al **mismo backend** (`backend/`).
+El sistema principal (`frontend/`) cubre la vista del **odontólogo/recepción** (gestiona pacientes, turnos, consultas, agenda y reportes). Este documento describe la **vista del paciente**: tres rutas adicionales dentro de la misma SPA React, donde el paciente puede iniciar sesión con su DNI, auto-registrarse, ver y reservar turnos, y cancelarlos.
 
-Ambas vistas conviven sin duplicar lógica: la del odontólogo sigue siendo la fuente de verdad para dar de alta pacientes manualmente o cargar consultas; la del paciente permite el alta automática y la autogestión de turnos.
+> **Nota histórica:** durante el desarrollo existió un proyecto aparte `frontend-paciente/` (segunda SPA en :5174). Se eliminó porque duplicaba lógica y obligaba a levantar dos dev servers. La vista del paciente quedó embebida en `/frontend` con rutas dedicadas que ocultan la navbar del odontólogo.
 
 ---
 
@@ -19,7 +19,7 @@ Ambas vistas conviven sin duplicar lógica: la del odontólogo sigue siendo la f
 
 El paciente entra al portal escribiendo **solo su DNI**, sin contraseña. Si el DNI existe en la BD, se loguea; si no, se le pide completar el resto de sus datos para auto-registrarse.
 
-> **Por qué es así:** mantener el alcance del TP sin convertir el sistema en uno empresarial. No se usa JWT, bcrypt, magic-link, ni OAuth. El "logueo" persiste el DNI y los datos del paciente en `localStorage`.
+> **Por qué es así:** mantener el alcance del TP sin convertir el sistema en uno empresarial. No se usa JWT, bcrypt, magic-link, ni OAuth. El "logueo" persiste el DNI y los datos del paciente en `localStorage` bajo la clave exportada como `PACIENTE_KEY` desde `PacienteLoginPage.jsx`.
 
 ### 2.2 Deduplicación con el panel del odontólogo
 
@@ -31,11 +31,19 @@ El paciente ve una grilla de **slots libres** calculados por el backend (`GET /a
 
 ### 2.4 Cancelación libre
 
-El paciente puede cancelar turnos en estado **Pendiente** o **Confirmado**. No puede cancelar turnos ya **Atendidos** o **Cancelados**.
+El paciente puede cancelar turnos en estado **Pendiente** o **Confirmado** desde `SolicitarTurnoPage`. No puede cancelar turnos ya **Atendidos** o **Cancelados**.
 
-### 2.5 Sin push en tiempo real
+### 2.5 Cambio de turno
 
-Cuando el odontólogo confirma un turno, **el paciente no recibe una notificación push** en el portal. Recibe el email (ya implementado en el backend). El portal muestra el cambio recién cuando el paciente refresca `/home`.
+El paciente puede mover un turno Pendiente o Confirmado a otro slot disponible, sin tener que cancelar y volver a reservar (`PATCH /api/portal/turnos/:id/cambiar`).
+
+### 2.6 Comprobante de pago (transferencia)
+
+Si el método de pago es **Transferencia**, el portal permite subir el comprobante (base64) desde `SolicitarTurnoPage` para que la recepción lo valide.
+
+### 2.7 Sin push en tiempo real
+
+Cuando el odontólogo confirma un turno, **el paciente no recibe una notificación push** en el portal. Recibe el email (ya implementado en el backend). El portal muestra el cambio recién cuando el paciente refresca la vista.
 
 > **Decisión consciente:** mantener simple. Sin WebSocket, sin SSE, sin polling. El email es la notificación oficial.
 
@@ -44,22 +52,32 @@ Cuando el odontólogo confirma un turno, **el paciente no recibe una notificaci�
 ## 3. Arquitectura
 
 ```
-+-------------------------+         +-------------------------+
-|  frontend-paciente (:5174)|       |  frontend (:5173)        |
-|  - LoginForm / Registro   |       |  - Pacientes             |
-|  - HomePage / Reservar    |       |  - Turnos                |
-|  - MiPerfil               |       |  - Agenda                |
-+------------+--------------+         +------------+------------+
-             |                                   |
-             |  /api/*                           |  /api/*
-             ▼                                   ▼
++---------------------------------------------+
+|  frontend (:5173) — única SPA                |
+|  ------------------------------------------  |
+|  Rutas del odontólogo (con NavBar):          |
+|    /pacientes                                |
+|    /turnos                                   |
+|    /agenda                                   |
+|    /consultas                                |
+|                                              |
+|  Rutas del paciente (sin NavBar):            |
+|    /portal             ← login + auto-reg    |
+|    /mi-turno           ← ver turno activo    |
+|    /solicitar-turno    ← reservar/cambiar    |
++--------------------+------------------------+
+                     |
+                     |  /api/*
+                     ▼
 +------------------------------------------------------------+
 |                  backend (Express :3000)                   |
 |  +-------------+  +-------------+  +---------------------+ |
-|  |  /pacientes |  |  /turnos    |  |  /portal (NUEVO)    | |
+|  |  /pacientes |  |  /turnos    |  |  /portal            | |
 |  +-------------+  +-------------+  |  - login            | |
 |                                    |  - registro         | |
 |                                    |  - mis-turnos       | |
+|                                    |  - alias-pago       | |
+|                                    |  - turnos (CRUD)    | |
 |                                    +---------------------+ |
 +----------------------------+-------------------------------+
                              │
@@ -69,52 +87,38 @@ Cuando el odontólogo confirma un turno, **el paciente no recibe una notificaci�
                      +---------------+
 ```
 
-### Backend (extensión, sin cambios al modelo)
+### 3.1 Rutas del paciente (frontend/src)
 
-Tres endpoints nuevos en `/api/portal/*`, que **delegan** en los controllers existentes:
+```
+frontend/src/
+├── pages/
+│   ├── PacienteLoginPage.jsx     # ruta /portal — login + auto-registro
+│   ├── MiTurnoPage.jsx           # ruta /mi-turno — turno activo
+│   └── SolicitarTurnoPage.jsx    # ruta /solicitar-turno — reservar/cambiar/cancelar/subir comprobante
+├── components/
+│   └── NavBar.jsx                # oculta el link de login y muestra "Mi turno" + logout cuando hay paciente en localStorage
+├── api/client.js                 # portalApi.* (loginPorDni, registrar, misTurnos, getAliasPago, crearTurno, cancelarTurno, cambiarTurno, comprobante)
+└── App.jsx                       # portalRoutes = ['/portal','/mi-turno','/solicitar-turno'] → oculta NavBar y container
+```
+
+`App.jsx` detecta las rutas del portal con `useLocation()` y omite la `NavBar` + el wrapper `.container`, dándole al paciente una UI limpia y mobile-first.
+
+### 3.2 Backend (extensión, sin cambios al modelo)
+
+Endpoints en `/api/portal/*` (ya existentes), que **delegan** en los controllers existentes:
 
 | Endpoint | Lógica |
 |---|---|
 | `POST /api/portal/login` | `Paciente.findOne({ dni })`. Devuelve `{ exists: true, data }` o `{ exists: false }`. |
 | `POST /api/portal/registro` | Reusa `crearPaciente` (controller existente). Mantiene deduplicación. |
 | `GET /api/portal/mis-turnos?dni=...` | `Paciente.findOne({ dni })` → reusa `listarTurnos` con filtro `paciente=ID`. |
+| `GET /api/portal/alias-pago` | Devuelve alias + titular configurados en backend. |
+| `POST /api/portal/turnos` | Crea turno nuevo del paciente. |
+| `PATCH /api/portal/turnos/:id/cancelar` | Cancela un turno propio. |
+| `PATCH /api/portal/turnos/:id/cambiar` | Mueve un turno propio a otro slot. |
+| `PATCH /api/portal/turnos/:id/comprobante` | Adjunta comprobante de pago (base64). |
 
-Más el cambio en `app.js`: `CLIENT_ORIGIN` ahora acepta **lista CSV** (`http://localhost:5173,http://localhost:5174`) y se valida cada origen contra esa lista.
-
-### Frontend (`frontend-paciente/`)
-
-Standalone: React 18 + Vite 5 + React Router 6. Mismas versiones que `frontend/`. Comparte solo el backend (vía proxy Vite :5174 → :3000).
-
-```
-frontend-paciente/
-├── package.json
-├── vite.config.js                ← port 5174, proxy /api → :3000
-├── index.html
-└── src/
-    ├── main.jsx                  ← BrowserRouter + App
-    ├── App.jsx                   ← Rutas + guards de auth
-    ├── styles.css                ← Mobile-first, container 600px
-    ├── api/client.js             ← Funciones fetch centralizadas
-    ├── hooks/
-    │   ├── useAuth.js            ← Login/registro/logout + localStorage
-    │   ├── useMisTurnos.js       ← Lista turnos del paciente
-    │   └── useDisponibilidad.js  ← Slots libres
-    ├── components/
-    │   ├── Header.jsx            ← Logo + saludo + logout
-    │   ├── LoginForm.jsx
-    │   ├── RegistroForm.jsx
-    │   ├── NuevoTurnoForm.jsx
-    │   ├── DisponibilidadGrid.jsx
-    │   ├── TurnoCardPaciente.jsx
-    │   ├── MisTurnosList.jsx
-    │   ├── MiPerfil.jsx
-    │   └── ConfirmDialog.jsx
-    └── pages/
-        ├── LoginPage.jsx
-        ├── HomePage.jsx
-        ├── ReservarPage.jsx
-        └── PerfilPage.jsx
-```
+`CLIENT_ORIGIN` en backend sigue aceptando lista CSV por si en el futuro se agregan otros frontends; con la unificación alcanza con `http://localhost:5173`.
 
 ---
 
@@ -125,43 +129,43 @@ frontend-paciente/
 ```mermaid
 sequenceDiagram
     participant P as Paciente
-    participant FE as frontend-paciente (:5174)
+    participant FE as frontend (:5173/portal)
     participant BE as backend (:3000)
     participant DB as MongoDB
-    P->>FE: Abre http://localhost:5174
-    FE->>FE: No hay paciente en localStorage → redirige a /login
+    P->>FE: Abre http://localhost:5173/portal
+    FE->>FE: No hay paciente en localStorage → renderiza PacienteLoginPage
     P->>FE: Ingresa DNI "99999999"
     FE->>BE: POST /api/portal/login { dni }
     BE->>DB: Paciente.findOne({ dni })
     DB-->>BE: null
     BE-->>FE: { ok: true, exists: false }
-    FE->>P: Renderiza RegistroForm con DNI precargado
+    FE->>P: Renderiza el form de auto-registro con DNI precargado
     P->>FE: Completa los 6 campos restantes
     FE->>BE: POST /api/portal/registro { ...datos }
     BE->>DB: crearPaciente (delegado)
     DB-->>BE: paciente creado
     BE-->>FE: { ok: true, existed: false, data: paciente }
-    FE->>FE: useAuth guarda paciente en localStorage
-    FE->>P: Redirige a /home → "No tenés turnos" + CTA Reservar
+    FE->>FE: guarda paciente en localStorage
+    FE->>P: Redirige a /mi-turno → "No tenés turnos" + CTA Solicitar
 ```
 
 ### 4.2 Escenario B — Paciente existente
 
-1. Paciente abre :5174.
+1. Paciente abre `/portal`.
 2. Pone DNI.
 3. `POST /api/portal/login` → `{ exists: true, data: paciente }`.
-4. `useAuth` guarda en `localStorage` → redirige a `/home` con sus turnos ya cargados.
+4. Se guarda en `localStorage` → redirige a `/mi-turno` con sus turnos ya cargados.
 
 ### 4.3 Escenario C — Reservar turno
 
 ```mermaid
 sequenceDiagram
     participant P as Paciente
-    participant FE as frontend-paciente
+    participant FE as frontend (/solicitar-turno)
     participant BE as backend
     participant DB as MongoDB
-    P->>FE: Click "Sacar turno" en /home
-    FE->>P: Muestra /reservar
+    P->>FE: Click "Solicitar turno" en /mi-turno
+    FE->>P: Muestra /solicitar-turno
     FE->>BE: GET /api/tratamientos
     BE-->>FE: Lista de tratamientos
     P->>FE: Selecciona "Limpieza" + fecha de mañana
@@ -170,25 +174,25 @@ sequenceDiagram
     FE->>P: Grilla de slots
     P->>FE: Click "10:30"
     P->>FE: Click "Reservar"
-    FE->>BE: POST /api/turnos { pacienteId, tratamientoId, fecha, horaInicio }
+    FE->>BE: POST /api/portal/turnos { pacienteId, tratamientoId, fecha, horaInicio }
     BE->>DB: validar no-solapamiento
     BE->>DB: crear turno en estado "Pendiente"
     BE-->>FE: { ok: true, data: turno }
-    FE->>P: Redirige a /home → ve el turno con badge "Pendiente"
+    FE->>P: Redirige a /mi-turno → ve el turno con badge "Pendiente"
 ```
 
 ### 4.4 Escenario D — Cancelar turno
 
-1. Paciente en `/home`, click "Cancelar" en un turno Pendiente o Confirmado.
-2. `ConfirmDialog` → confirma.
-3. `PATCH /api/turnos/:id/cancelar` → backend cambia estado y elimina evento de Calendar (si existe).
+1. Paciente en `/mi-turno`, click "Cancelar" en un turno Pendiente o Confirmado.
+2. Confirmación en el modal.
+3. `PATCH /api/portal/turnos/:id/cancelar` → backend cambia estado y elimina evento de Calendar (si existe).
 4. Recargar lista → badge **Cancelado**.
 
 ### 4.5 Escenario E — Confirmación por el odontólogo
 
-1. El odontólogo confirma el pago desde su panel (`frontend/`).
+1. El odontólogo confirma el pago desde su panel (`/turnos`).
 2. Backend actualiza estado, crea evento en Calendar, envía email.
-3. El paciente **NO** recibe push. Ve el cambio al refrescar `/home` (botón del navegador o F5).
+3. El paciente **NO** recibe push. Ve el cambio al refrescar `/mi-turno` (botón del navegador o F5).
 4. Email sigue siendo la notificación oficial.
 
 ---
@@ -202,6 +206,11 @@ Base URL: `http://localhost:3000/api`
 | `POST` | `/portal/login` | `{ dni }` | `{ ok, exists, data? }` |
 | `POST` | `/portal/registro` | `{ dni, nombre, apellido, telefono, email, fechaNacimiento, obraSocial }` | `{ ok, existed, data }` |
 | `GET` | `/portal/mis-turnos?dni=X` | — | `{ ok, data: [turnos] }` |
+| `GET` | `/portal/alias-pago` | — | `{ ok, data: { alias, titular } }` |
+| `POST` | `/portal/turnos` | `{ pacienteId, tratamientoId, fecha, horaInicio, metodoPago? }` | `{ ok, data: turno }` |
+| `PATCH` | `/portal/turnos/:id/cancelar` | `{ motivo? }` | `{ ok, data: turno }` |
+| `PATCH` | `/portal/turnos/:id/cambiar` | `{ fecha, horaInicio, motivo? }` | `{ ok, data: turno }` |
+| `PATCH` | `/portal/turnos/:id/comprobante` | `{ comprobanteBase64 }` | `{ ok, data: turno }` |
 
 Validaciones aplicadas (vía `express-validator`):
 - `dni`: 7-8 dígitos.
@@ -217,32 +226,19 @@ Las mismas reglas del endpoint `POST /api/pacientes` (se reusa `crearPacienteVal
 
 ## 6. Configuración y arranque
 
-### 6.1 CORS multi-origen
-
-En `backend/.env`:
-
-```env
-CLIENT_ORIGIN=http://localhost:5173,http://localhost:5174
-```
-
-El backend parsea esto como CSV y valida cada `Origin` del request contra la lista. Cualquier origen fuera de la lista responde HTTP 500 con `"Origen no permitido por CORS: ..."`.
-
-### 6.2 Arranque de los tres servicios
-
-Necesitás **3 terminales** (o usar `concurrently` en el root):
+Con la unificación, alcanza con **2 terminales** en lugar de 3:
 
 ```bash
 # Terminal 1
 cd backend && npm run dev              # http://localhost:3000
 
 # Terminal 2
-cd frontend && npm run dev             # http://localhost:5173 (odontólogo)
-
-# Terminal 3
-cd frontend-paciente && npm run dev    # http://localhost:5174 (pacientes)
+cd frontend && npm run dev             # http://localhost:5173
+# Dentro de :5173: el odontólogo usa /pacientes, /turnos, /agenda, /consultas
+# y el paciente usa /portal, /mi-turno, /solicitar-turno (mismo dev server)
 ```
 
-`frontend-paciente/vite.config.js` ya tiene el proxy `/api → :3000` configurado.
+`frontend/vite.config.js` ya tiene el proxy `/api → :3000` configurado.
 
 ---
 
@@ -264,7 +260,7 @@ cd frontend-paciente && npm run dev    # http://localhost:5174 (pacientes)
 End-to-end con backend corriendo y Mongo real:
 
 ```bash
-# Con backend en :3000 y frontend-paciente en :5174:
+# Con backend en :3000 y frontend en :5173:
 
 # 1) Paciente nuevo
 curl -X POST http://localhost:3000/api/portal/login \
@@ -288,17 +284,17 @@ curl "http://localhost:3000/api/portal/mis-turnos?dni=99999999"
 # → { data: [] } al inicio
 
 # 4) CORS check
-curl -i http://localhost:3000/api/health -H "Origin: http://localhost:5174"
-# → Access-Control-Allow-Origin: http://localhost:5174
+curl -i http://localhost:3000/api/health -H "Origin: http://localhost:5173"
+# → Access-Control-Allow-Origin: http://localhost:5173
 ```
 
 **Validación visual (manual):**
-1. Abrir `http://localhost:5174` en el navegador.
+1. Abrir `http://localhost:5173/portal` en el navegador.
 2. Poner DNI "99999999" → si no existe, completar registro.
-3. En `/home` click "Sacar turno" → elegir tratamiento + fecha + slot → confirmar.
+3. En `/mi-turno` click "Solicitar turno" → elegir tratamiento + fecha + slot → confirmar.
 4. Verificar que el turno aparece en estado **Pendiente**.
-5. En otra pestaña, abrir `http://localhost:5173` (panel odontólogo) → ir a `/turnos` → click "Confirmar pago" del turno nuevo.
-6. Volver al portal :5174 → refrescar `/home` → el turno debe pasar a **Confirmado** (si Calendar y Mail están configurados, el email también llegó).
+5. En otra pestaña, abrir `http://localhost:5173/turnos` (panel odontólogo) → click "Confirmar pago" del turno nuevo.
+6. Volver a `/mi-turno` → refrescar → el turno debe pasar a **Confirmado** (si Calendar y Mail están configurados, el email también llegó).
 
 ---
 

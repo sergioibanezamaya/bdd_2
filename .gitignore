@@ -21,3 +21,17 @@ desktop.ini
 # Logs
 *.log
 logs/
+
+# Dependencias y builds (no se versionan — se regeneran con npm install)
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Cobertura de tests
+coverage/
+**/coverage/
+
+# Archivos de MongoDB en memoria (binarios descargados por mongodb-memory-server)
+.mongodb-binaries/
+**/.mongodb-binaries/

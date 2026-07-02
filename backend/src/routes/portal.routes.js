@@ -4,7 +4,8 @@
  * =====================================================================
  * Trabajo Práctico — Base de Datos II
  *
- * Endpoints públicos (sin auth) usados por el frontend-paciente (:5174):
+ * Endpoints públicos (sin auth) usados por la vista del paciente embebida
+ * en /frontend (rutas /portal, /mi-turno, /solicitar-turno en :5173):
  *   POST /api/portal/login
  *   POST /api/portal/registro
  *   GET  /api/portal/mis-turnos?dni=...

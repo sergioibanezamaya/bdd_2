@@ -52,15 +52,15 @@ npm run dev                 # abre http://localhost:5173
 
 Al abrir el navegador, redirige automáticamente a `/pacientes`.
 
-### 4) Portal del Paciente (opcional, en otra terminal)
+### 4) Portal del Paciente (incluido en el frontend)
 
-```bash
-cd frontend-paciente
-npm install
-npm run dev                 # abre http://localhost:5174
-```
+El portal del paciente **no es un proyecto aparte**: está embebido en `frontend/` como tres rutas más:
 
-El portal es una segunda SPA donde los pacientes pueden iniciar sesión con su DNI, auto-registrarse, reservar turnos, ver su estado y cancelar. Detalle completo en [`docs/09-portal-paciente.md`](./docs/09-portal-paciente.md).
+- `/portal` → login por DNI (auto-registro si el DNI no existe).
+- `/mi-turno` → ver el turno reservado.
+- `/solicitar-turno` → reservar o cambiar un turno.
+
+Se accede desde la misma app (http://localhost:5173) haciendo click en el link **"Portal Paciente"** de la navbar superior, o escribiendo la URL directamente. Al entrar al portal se oculta la navbar del odontólogo y se monta una UI mobile-first. Detalle completo en [`docs/09-portal-paciente.md`](./docs/09-portal-paciente.md).
 
 ---
 
@@ -143,22 +143,15 @@ turnos-odontologia/
 │   │   └── utils/                 # slots, time, seed
 │   ├── .env.example               # Plantilla de variables
 │   └── credentials.json           # (NO subir) OAuth Google
-├── frontend/                      # SPA React (panel odontólogo/recepción)
+├── frontend/                      # SPA React (panel odontólogo/recepción + portal paciente)
 │   ├── src/
-│   │   ├── pages/                 # PacientesPage, TurnosPage, AgendaPage, ConsultasPage
-│   │   ├── components/            # Formularios, grilla disponibilidad, tarjetas
+│   │   ├── pages/                 # PacientesPage, TurnosPage, AgendaPage, ConsultasPage,
+│   │   │                          # PacienteLoginPage, MiTurnoPage, SolicitarTurnoPage
+│   │   ├── components/            # Formularios, grilla disponibilidad, tarjetas, NavBar
 │   │   ├── hooks/                 # usePacientes, useTurnos, useConsultas, useDisponibilidad
-│   │   ├── api/client.js          # Funciones fetch centralizadas
-│   │   └── App.jsx                # Layout + Routes
+│   │   ├── api/client.js          # Funciones fetch centralizadas (incluye portal)
+│   │   └── App.jsx                # Layout + Routes (oculta navbar en rutas /portal, /mi-turno, /solicitar-turno)
 │   ├── vite.config.js             # Proxy /api → backend
-│   └── index.html
-├── frontend-paciente/             # SPA React (portal del paciente, :5174)
-│   ├── src/
-│   │   ├── pages/                 # LoginPage, HomePage, ReservarPage, PerfilPage
-│   │   ├── components/            # LoginForm, RegistroForm, NuevoTurnoForm, etc.
-│   │   ├── hooks/                 # useAuth, useMisTurnos, useDisponibilidad
-│   │   └── App.jsx                # Rutas + auth por DNI
-│   ├── vite.config.js             # port 5174, proxy /api → backend
 │   └── index.html
 └── docs/                          # Documentación entregable del TP
     ├── 01-modelo-conceptual.md
@@ -190,18 +183,18 @@ Una vez levantado el sistema:
 7. **Consulta**: ir a `/consultas` → seleccionar paciente → "+ Nueva consulta" → completar → guardar. El historial aparece ordenado por fecha.
 8. **Agenda**: ir a `/agenda` → seleccionar día → ver turnos del día + panel con agregaciones.
 
-### Portal del Paciente (frontend-paciente en :5174)
+### Portal del Paciente (rutas embebidas en :5173)
 
-9. Abrir `http://localhost:5174` → pantalla de login con DNI.
-10. Poner DNI "99999999" (o cualquier DNI no registrado) → completar el formulario de auto-registro → crear cuenta. El portal redirige a `/home`.
-11. Click "Sacar turno nuevo" → elegir tratamiento + fecha de mañana + slot libre → confirmar. El turno aparece en `/home` con badge **Pendiente**.
-12. Click "Cancelar turno" sobre el turno nuevo → confirmar en el modal → badge cambia a **Cancelado**.
+9. Abrir `http://localhost:5173/portal` (o click en "Portal Paciente" del navbar) → pantalla de login con DNI.
+10. Poner DNI "99999999" (o cualquier DNI no registrado) → completar el formulario de auto-registro → crear cuenta. El portal redirige a `/mi-turno`.
+11. Click "Solicitar turno" → elegir tratamiento + fecha de mañana + slot libre → confirmar. El turno aparece en `/mi-turno` con badge **Pendiente**.
+12. Click "Cancelar" sobre el turno nuevo → confirmar en el modal → badge cambia a **Cancelado**.
 
 ### Confirmación cruzada (odontólogo ↔ paciente)
 
 13. Abrir el panel odontólogo en `http://localhost:5173` (otra pestaña).
 14. Ir a `/turnos` → localizar el turno recién reservado desde el portal → click "Confirmar pago".
-15. Volver al portal :5174 → refrescar `/home` → el turno ahora aparece como **Confirmado**. Si Gmail y Calendar están configurados, el paciente también recibió el email.
+15. Volver al portal en :5173/portal → refrescar `/mi-turno` → el turno ahora aparece como **Confirmado**. Si Gmail y Calendar están configurados, el paciente también recibió el email.
 
 ---
 
@@ -271,7 +264,7 @@ Para este TP **no se implementa autenticación** (es un requisito explícito: ma
 
 ### ⚠️ Seguridad del Portal del Paciente
 
-El portal (`frontend-paciente/`) usa **DNI como única credencial**, sin contraseña. Esto significa que:
+El portal (rutas `/portal`, `/mi-turno`, `/solicitar-turno` dentro de `frontend/`) usa **DNI como única credencial**, sin contraseña. Esto significa que:
 
 - Cualquier persona que conozca el DNI de un paciente puede ver sus turnos y cancelar.
 - La sesión persiste en `localStorage` del navegador.

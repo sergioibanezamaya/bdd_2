@@ -27,8 +27,10 @@ const app = express();
 // Middlewares globales
 // =====================================================================
 
-// CORS: aceptar UNA lista de orígenes separados por coma (CSV) para
-// soportar múltiples frontends (panel odontólogo :5173 + portal paciente :5174).
+// CORS: aceptar UNA lista de orígenes separados por coma (CSV) por si en el
+// futuro se agregan otros frontends. Con la unificación del portal embebido
+// en /frontend, alcanza con http://localhost:5173; el CSV se conserva
+// para no romper deploys que aún tengan configurados varios orígenes.
 // Ejemplo: CLIENT_ORIGIN=http://localhost:5173,http://localhost:5174
 const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .split(',')
